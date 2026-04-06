@@ -46,6 +46,7 @@ export const initWhatsAppClient = () => {
             }),
             puppeteer: {
                 headless: true,
+                executablePath: process.env.CHROME_BIN || undefined,
                 args: [
                     '--no-sandbox', 
                     '--disable-setuid-sandbox',
