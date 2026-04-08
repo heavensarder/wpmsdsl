@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Smartphone, CheckCircle2, ShieldCheck, LogOut, Send, Loader2 } from 'lucide-react';
 import './globals.css';
 
-type BotStatus = 'DISCONNECTED' | 'INITIALIZING' | 'PENDING_QR' | 'CONNECTED_READY';
+type BotStatus = 'DISCONNECTED' | 'INITIALIZING' | 'PENDING_QR' | 'AUTHENTICATING' | 'CONNECTED_READY';
 
 interface StatusResponse {
   status: BotStatus;
@@ -121,11 +121,12 @@ export default function Home() {
         </div>
 
         <div style={{ textAlign: 'center' }}>
-          <div className={`status-badge ${data.status === 'CONNECTED_READY' ? 'connected' : (data.status === 'PENDING_QR' ? 'pending' : '')}`}>
+          <div className={`status-badge ${data.status === 'CONNECTED_READY' ? 'connected' : (data.status === 'PENDING_QR' ? 'pending' : (data.status === 'AUTHENTICATING' ? 'connected' : ''))}`}>
             <span className="status-indicator"></span>
             {data.status === 'DISCONNECTED' && 'Disconnected'}
             {data.status === 'INITIALIZING' && 'Starting Engine...'}
             {data.status === 'PENDING_QR' && 'Scan QR Code'}
+            {data.status === 'AUTHENTICATING' && 'Connecting...'}
             {data.status === 'CONNECTED_READY' && 'System Online'}
           </div>
         </div>
@@ -139,6 +140,13 @@ export default function Home() {
                  <div style={{ textAlign: 'center' }}>
                    <div className="loader" style={{ margin: '0 auto' }}></div>
                    <p className="info-text" style={{ marginTop: '1rem' }}>Initializing WhatsApp engine in the background...</p>
+                 </div>
+               )}
+
+               {data.status === 'AUTHENTICATING' && (
+                 <div style={{ textAlign: 'center' }}>
+                   <div className="loader" style={{ margin: '0 auto' }}></div>
+                   <p className="info-text" style={{ marginTop: '1rem' }}>QR scanned successfully! Establishing secure session...</p>
                  </div>
                )}
 
