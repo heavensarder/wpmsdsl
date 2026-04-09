@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Smartphone, CheckCircle2, ShieldCheck, LogOut, Send, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Smartphone, CheckCircle2, ShieldCheck, LogOut, Send, Loader2, History } from 'lucide-react';
 import './globals.css';
 
 type BotStatus = 'DISCONNECTED' | 'INITIALIZING' | 'PENDING_QR' | 'AUTHENTICATING' | 'CONNECTED_READY';
@@ -107,17 +108,23 @@ export default function Home() {
             </div>
             <p className="subtitle">Manage your bot connection</p>
           </div>
-          <button 
-            type="button"
-            className="btn btn-danger" 
-            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', marginTop: 0 }}
-            onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST' });
-              window.location.reload();
-            }}
-          >
-            Sign Out Engine
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Link href="/history" className="history-nav-btn">
+              <History size={16} />
+              History
+            </Link>
+            <button 
+              type="button"
+              className="btn btn-danger" 
+              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', marginTop: 0 }}
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.reload();
+              }}
+            >
+              Sign Out Engine
+            </button>
+          </div>
         </div>
 
         <div style={{ textAlign: 'center' }}>

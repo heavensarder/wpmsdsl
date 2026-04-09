@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getWhatsAppClient, getWhatsAppStatus } from '@/lib/whatsapp';
 import { MessageMedia } from 'whatsapp-web.js';
-import { query } from '@/lib/db';
+import { query, initMessageLogsTable } from '@/lib/db';
 
 export async function POST(req: Request) {
     try {
+        await initMessageLogsTable();
+
         const statusObj = getWhatsAppStatus();
         if (statusObj.status !== 'CONNECTED_READY') {
             return NextResponse.json({ error: 'WhatsApp Client is not connected.' }, { status: 400 });
@@ -39,20 +41,39 @@ export async function POST(req: Request) {
         if (fileUrl) {
             try {
                 media = await MessageMedia.fromUrl(fileUrl, { unsafeMime: true, filename: fileName });
-            } catch (mediaError) {
-                console.error('Failed to parse media from url', mediaError);
+            } catch (mediaError: any) {
+                // Log failed media download
+                await query(
+                    'INSERT INTO message_logs (phone_number, message, file_url, status, error_reason) VALUES (?, ?, ?, ?, ?)',
+                    [phoneNumber, message || '', fileUrl, 'failed', 'Failed to download file: ' + (mediaError.message || 'Unknown error')]
+                );
                 return NextResponse.json({ error: 'Failed to download file from provided URL.' }, { status: 400 });
             }
         }
 
-        let sentMsg;
-        if (media) {
-            sentMsg = await client.sendMessage(chatId, message || '', { media });
-        } else {
-            sentMsg = await client.sendMessage(chatId, message || '');
-        }
+        try {
+            let sentMsg;
+            if (media) {
+                sentMsg = await client.sendMessage(chatId, message || '', { media });
+            } else {
+                sentMsg = await client.sendMessage(chatId, message || '');
+            }
 
-        return NextResponse.json({ success: true, messageId: sentMsg.id._serialized });
+            // Log success
+            await query(
+                'INSERT INTO message_logs (phone_number, message, file_url, status, wa_message_id) VALUES (?, ?, ?, ?, ?)',
+                [phoneNumber, message || '', fileUrl || null, 'success', sentMsg.id._serialized]
+            );
+
+            return NextResponse.json({ success: true, messageId: sentMsg.id._serialized });
+        } catch (sendError: any) {
+            // Log failed send
+            await query(
+                'INSERT INTO message_logs (phone_number, message, file_url, status, error_reason) VALUES (?, ?, ?, ?, ?)',
+                [phoneNumber, message || '', fileUrl || null, 'failed', sendError.message || 'Unknown send error']
+            );
+            return NextResponse.json({ error: sendError.message || 'Failed to send message' }, { status: 500 });
+        }
     } catch (error: any) {
         console.error('Error sending message:', error);
         return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
