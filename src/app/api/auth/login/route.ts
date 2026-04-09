@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     // Create JWT token
     const token = await new SignJWT({ userId: user.id, email: user.email })
       .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('24h')
+      .setExpirationTime('3650d') // 10 years
       .sign(JWT_SECRET);
 
     // Set cookie
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: 60 * 60 * 24 * 3650, // 10 years
       path: '/'
     });
 
