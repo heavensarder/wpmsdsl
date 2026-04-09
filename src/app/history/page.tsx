@@ -28,9 +28,25 @@ export default function HistoryPage() {
   const [logs, setLogs] = useState<MessageLog[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 15, total: 0, totalPages: 0 });
   const [statusFilter, setStatusFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Generate last 12 months
+  const monthOptions = useCallback(() => {
+    const options = [{ value: 'all', label: 'All Time' }];
+    const today = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      let label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      if (i === 0) label = `This Month (${label})`;
+      else if (i === 1) label = `Last Month (${label})`;
+      options.push({ value, label });
+    }
+    return options;
+  }, [])();
 
   const fetchHistory = useCallback(async (page = 1, showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
@@ -41,6 +57,7 @@ export default function HistoryPage() {
         page: String(page),
         limit: '15',
         status: statusFilter,
+        month: monthFilter,
         search: searchQuery,
       });
       const res = await fetch(`/api/whatsapp/history?${params}`);
@@ -59,7 +76,7 @@ export default function HistoryPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [statusFilter, searchQuery, router]);
+  }, [statusFilter, monthFilter, searchQuery, router]);
 
   useEffect(() => {
     fetchHistory(1);
@@ -124,17 +141,31 @@ export default function HistoryPage() {
               className="history-search-input"
             />
           </form>
-          <div className="history-status-filter">
-            <Filter size={14} />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="history-select"
-            >
-              <option value="all">All Status</option>
-              <option value="success">Success</option>
-              <option value="failed">Failed</option>
-            </select>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="history-status-filter">
+              <Clock size={14} />
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="history-select"
+              >
+                {monthOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="history-status-filter">
+              <Filter size={14} />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="history-select"
+              >
+                <option value="all">All Status</option>
+                <option value="success">Success</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -164,7 +195,7 @@ export default function HistoryPage() {
               </div>
               <h3>No Messages Found</h3>
               <p>
-                {searchQuery || statusFilter !== 'all'
+                {searchQuery || statusFilter !== 'all' || monthFilter !== 'all'
                   ? 'No messages match your current filters. Try adjusting them.'
                   : 'Messages you send will appear here with their delivery status.'}
               </p>

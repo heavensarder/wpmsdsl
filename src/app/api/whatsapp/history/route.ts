@@ -21,6 +21,7 @@ export async function GET(req: Request) {
         const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
         const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '15')));
         const status = searchParams.get('status') || 'all'; // all, success, failed
+        const monthFilter = searchParams.get('month') || 'all'; // all, 'YYYY-MM'
         const search = searchParams.get('search') || '';
         const offset = (page - 1) * limit;
 
@@ -31,6 +32,14 @@ export async function GET(req: Request) {
         if (status !== 'all') {
             conditions.push('status = ?');
             params.push(status);
+        }
+
+        if (monthFilter !== 'all') {
+            // Check if monthFilter matches YYYY-MM
+            if (/^\d{4}-\d{2}$/.test(monthFilter)) {
+                conditions.push("DATE_FORMAT(created_at, '%Y-%m') = ?");
+                params.push(monthFilter);
+            }
         }
 
         if (search.trim()) {
