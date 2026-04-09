@@ -123,10 +123,10 @@ export default function ApiDocs() {
   body: JSON.stringify({
     instance_id: "YOUR_SECURE_INSTANCE_ID",
     phoneNumber: "88017xxxxxxx",
-    message: "Here is your picture.",
+    message: "Here is your Invoice.",
     fileData: "iVBORw0KGgoAAAANSUhEUgAAAAEAAA...",
-    fileMimeType: "image/png",
-    fileName: "photo.png"
+    fileMimeType: "application/pdf",
+    fileName: "invoice.pdf"
   })
 })`}
             </div>
