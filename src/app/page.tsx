@@ -109,10 +109,12 @@ export default function Home() {
             <p className="subtitle">Manage your bot connection</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <Link href="/history" className="history-nav-btn">
-              <History size={16} />
-              History
-            </Link>
+            {data.status === 'CONNECTED_READY' && (
+              <Link href="/history" className="history-nav-btn">
+                <History size={16} />
+                History
+              </Link>
+            )}
             <button 
               type="button"
               className="btn btn-danger" 
