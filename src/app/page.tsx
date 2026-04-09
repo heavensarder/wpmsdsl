@@ -211,7 +211,7 @@ export default function Home() {
                            <input 
                              type="text" 
                              className="input-field" 
-                             placeholder="Phone Number (e.g. 15551234567)" 
+                             placeholder="Phone Number (e.g. 88017xxxxxxx)" 
                              value={phone}
                              onChange={e => setPhone(e.target.value)}
                              required

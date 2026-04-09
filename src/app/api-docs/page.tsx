@@ -70,7 +70,7 @@ export default function ApiDocs() {
                 <tr>
                   <td><code>phoneNumber</code></td>
                   <td><span style={{color: 'var(--accent-color)', fontWeight: 600}}>Yes</span></td>
-                  <td>Target number with Country Code (e.g. <code>15551234567</code>). No plus signs.</td>
+                  <td>Target number with Country Code (e.g. <code>88017xxxxxxx</code>). No plus signs.</td>
                 </tr>
                 <tr>
                   <td><code>message</code></td>
@@ -97,7 +97,7 @@ export default function ApiDocs() {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     instance_id: "YOUR_SECURE_INSTANCE_ID",
-    phoneNumber: "15551234567",
+    phoneNumber: "88017xxxxxxx",
     message: "Here is your invoice attachment.",
     fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     fileName: "invoice.pdf"
@@ -111,7 +111,7 @@ export default function ApiDocs() {
             <div className="code-block">
 {`{
   "success": true,
-  "messageId": "true_15551234567@c.us_3EB03A4..."
+  "messageId": "true_88017xxxxxxx@c.us_3EB03A4..."
 }`}
             </div>
           </section>
