@@ -18,7 +18,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { instance_id, phoneNumber, message, fileUrl, fileName } = body;
+        const { instance_id, phoneNumber, message, fileUrl, fileName, fileData, fileMimeType } = body;
 
         if (!instance_id) {
             return NextResponse.json({ error: 'instance_id is required' }, { status: 401 });
@@ -38,7 +38,21 @@ export async function POST(req: Request) {
         const chatId = `${phoneNumber.replace(/\D/g, '')}@c.us`;
 
         let media: MessageMedia | undefined;
-        if (fileUrl) {
+        let attachmentLogSource = null;
+
+        if (fileData && fileMimeType) {
+            try {
+                media = new MessageMedia(fileMimeType, fileData, fileName || 'attachment');
+                attachmentLogSource = 'direct-file-attachment';
+            } catch (mediaError: any) {
+                await query(
+                    'INSERT INTO message_logs (phone_number, message, file_url, status, error_reason) VALUES (?, ?, ?, ?, ?)',
+                    [phoneNumber, message || '', 'direct-file-attachment', 'failed', 'Failed to process base64 file data']
+                );
+                return NextResponse.json({ error: 'Failed to process attached file.' }, { status: 400 });
+            }
+        } else if (fileUrl) {
+            attachmentLogSource = fileUrl;
             try {
                 media = await MessageMedia.fromUrl(fileUrl, { unsafeMime: true, filename: fileName });
             } catch (mediaError: any) {
@@ -54,7 +68,8 @@ export async function POST(req: Request) {
         try {
             let sentMsg;
             if (media) {
-                sentMsg = await client.sendMessage(chatId, message || '', { media });
+                // To send media with text, the media object is the main content and the text is the caption
+                sentMsg = await client.sendMessage(chatId, media, { caption: message || '' });
             } else {
                 sentMsg = await client.sendMessage(chatId, message || '');
             }
@@ -62,7 +77,7 @@ export async function POST(req: Request) {
             // Log success
             await query(
                 'INSERT INTO message_logs (phone_number, message, file_url, status, wa_message_id) VALUES (?, ?, ?, ?, ?)',
-                [phoneNumber, message || '', fileUrl || null, 'success', sentMsg.id._serialized]
+                [phoneNumber, message || '', attachmentLogSource, 'success', sentMsg.id._serialized]
             );
 
             return NextResponse.json({ success: true, messageId: sentMsg.id._serialized });
@@ -70,7 +85,7 @@ export async function POST(req: Request) {
             // Log failed send
             await query(
                 'INSERT INTO message_logs (phone_number, message, file_url, status, error_reason) VALUES (?, ?, ?, ?, ?)',
-                [phoneNumber, message || '', fileUrl || null, 'failed', sendError.message || 'Unknown send error']
+                [phoneNumber, message || '', attachmentLogSource, 'failed', sendError.message || 'Unknown send error']
             );
             return NextResponse.json({ error: sendError.message || 'Failed to send message' }, { status: 500 });
         }

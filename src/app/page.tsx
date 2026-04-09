@@ -23,6 +23,9 @@ export default function Home() {
   // Test form state
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
+  const [fileData, setFileData] = useState('');
+  const [fileMimeType, setFileMimeType] = useState('');
+  const [fileName, setFileName] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [testResult, setTestResult] = useState<{success?: boolean, msg?: string} | null>(null);
   const [instanceId, setInstanceId] = useState<string>('');
@@ -67,6 +70,23 @@ export default function Home() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      const match = dataUrl.match(/^data:(.*);base64,(.*)$/);
+      if (match) {
+        setFileMimeType(match[1]);
+        setFileData(match[2]);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSendTestMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone || !message) return;
@@ -77,13 +97,23 @@ export default function Home() {
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instance_id: instanceId, phoneNumber: phone, message })
+        body: JSON.stringify({ 
+          instance_id: instanceId, 
+          phoneNumber: phone, 
+          message, 
+          fileData: fileData || undefined,
+          fileMimeType: fileMimeType || undefined,
+          fileName: fileName || undefined
+        })
       });
       const result = await res.json();
       
       if (res.ok) {
          setTestResult({ success: true, msg: 'Message sent successfully!' });
          setMessage(''); // clear message but keep phone for easier re-testing
+         setFileData('');
+         setFileMimeType('');
+         setFileName('');
       } else {
          setTestResult({ success: false, msg: result.error || 'Failed to send message.' });
       }
@@ -217,6 +247,15 @@ export default function Home() {
                              onChange={e => setPhone(e.target.value)}
                              required
                              style={{ marginBottom: '0' }}
+                           />
+                         </div>
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem' }}>
+                           <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Attachment (Optional)</label>
+                           <input 
+                             type="file" 
+                             className="input-field" 
+                             onChange={handleFileChange}
+                             style={{ marginBottom: '0', padding: '0.85rem' }}
                            />
                          </div>
                          <textarea 
