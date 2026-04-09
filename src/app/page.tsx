@@ -97,16 +97,15 @@ export default function Home() {
   return (
     <div className="container">
       <div className="dashboard-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '2.5rem' }}>
-          <div style={{ textAlign: 'left', flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://mediasoftbd.com/wp-content/uploads/2025/06/mediasoft-logo.png" alt="Mediasoft" style={{ height: '36px', objectFit: 'contain' }} />
-              <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 0.5rem' }}></div>
-              <Smartphone size={24} color="var(--accent-color)" />
-              <h1 className="title" style={{ marginBottom: 0, fontSize: '1.4rem' }}>WhatsApp Gateway</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ textAlign: 'left', flex: 1, minWidth: '300px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="https://mediasoftbd.com/wp-content/uploads/2025/06/mediasoft-logo.png" alt="Mediasoft" style={{ height: '28px', objectFit: 'contain', marginBottom: '1.2rem', display: 'block' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
+              <Smartphone size={22} color="var(--accent-primary)" />
+              <h1 className="title" style={{ marginBottom: 0, fontSize: '1.6rem', whiteSpace: 'nowrap' }}>WhatsApp Gateway</h1>
             </div>
-            <p className="subtitle">Manage your bot connection</p>
+            <p className="subtitle" style={{ fontSize: '0.9rem' }}>Manage your bot connection</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             {data.status === 'CONNECTED_READY' && (
