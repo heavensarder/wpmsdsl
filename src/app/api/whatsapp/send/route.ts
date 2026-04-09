@@ -69,7 +69,13 @@ export async function POST(req: Request) {
             let sentMsg;
             if (media) {
                 // To send media with text, the media object is the main content and the text is the caption
-                sentMsg = await client.sendMessage(chatId, media, { caption: message || '' });
+                const options: any = {
+                    sendMediaAsDocument: true // Fallback to document to avoid media parse strictness
+                };
+                if (message && message.trim() !== '') {
+                    options.caption = message;
+                }
+                sentMsg = await client.sendMessage(chatId, media, options);
             } else {
                 sentMsg = await client.sendMessage(chatId, message || '');
             }

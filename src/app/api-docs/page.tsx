@@ -80,7 +80,17 @@ export default function ApiDocs() {
                 <tr>
                   <td><code>fileUrl</code></td>
                   <td>No</td>
-                  <td>Publicly accessible URL to an image or document (e.g. PDF). The server will download it and attach it to the WhatsApp payload!</td>
+                  <td>Publicly accessible URL to an image or document (e.g. PDF). The server will download it and attach it to the WhatsApp payload. Mutually exclusive with `fileData`.</td>
+                </tr>
+                <tr>
+                  <td><code>fileData</code></td>
+                  <td>No</td>
+                  <td>Raw Base64 string of the file. No prefixes like <code>data:image/jpeg;base64,</code> just the pure Base64 content!</td>
+                </tr>
+                <tr>
+                  <td><code>fileMimeType</code></td>
+                  <td>No</td>
+                  <td>Required if using <code>fileData</code>. Example: <code>image/jpeg</code> or <code>application/pdf</code>.</td>
                 </tr>
                 <tr>
                   <td><code>fileName</code></td>
@@ -90,7 +100,7 @@ export default function ApiDocs() {
               </tbody>
             </table>
 
-            <h3>Example (Node.js/Browser Fetch)</h3>
+            <h3>Example: Sending by URL</h3>
             <div className="code-block">
 {`fetch('${baseUrl}/api/whatsapp/send', {
   method: 'POST',
@@ -99,12 +109,26 @@ export default function ApiDocs() {
     instance_id: "YOUR_SECURE_INSTANCE_ID",
     phoneNumber: "88017xxxxxxx",
     message: "Here is your invoice attachment.",
-    fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    fileUrl: "https://example.com/dummy.pdf",
     fileName: "invoice.pdf"
   })
-})
-.then(res => res.json())
-.then(data => console.log(data));`}
+})`}
+            </div>
+
+            <h3>Example: Sending by Direct Base64</h3>
+            <div className="code-block">
+{`fetch('${baseUrl}/api/whatsapp/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    instance_id: "YOUR_SECURE_INSTANCE_ID",
+    phoneNumber: "88017xxxxxxx",
+    message: "Here is your picture.",
+    fileData: "iVBORw0KGgoAAAANSUhEUgAAAAEAAA...",
+    fileMimeType: "image/png",
+    fileName: "photo.png"
+  })
+})`}
             </div>
             
             <h3>Success Response</h3>
