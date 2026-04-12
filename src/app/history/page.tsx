@@ -29,13 +29,19 @@ export default function HistoryPage() {
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 15, total: 0, totalPages: 0 });
   const [statusFilter, setStatusFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Generate last 12 months
-  const monthOptions = useCallback(() => {
-    const options = [{ value: 'all', label: 'All Time' }];
+  // Generate date options
+  const dateOptions = useCallback(() => {
+    const options = [
+      { value: 'all', label: 'All Time' },
+      { value: 'today', label: 'Today' },
+      { value: 'yesterday', label: 'Yesterday' }
+    ];
     const today = new Date();
     for (let i = 0; i < 12; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
@@ -45,6 +51,7 @@ export default function HistoryPage() {
       else if (i === 1) label = `Last Month (${label})`;
       options.push({ value, label });
     }
+    options.push({ value: 'custom', label: 'Custom Date Range' });
     return options;
   }, [])();
 
@@ -53,13 +60,20 @@ export default function HistoryPage() {
     else setIsLoading(true);
 
     try {
-      const params = new URLSearchParams({
+      const queryParams: Record<string, string> = {
         page: String(page),
         limit: '15',
         status: statusFilter,
         month: monthFilter,
         search: searchQuery,
-      });
+      };
+
+      if (monthFilter === 'custom') {
+        if (startDate) queryParams.startDate = startDate;
+        if (endDate) queryParams.endDate = endDate;
+      }
+
+      const params = new URLSearchParams(queryParams);
       const res = await fetch(`/api/whatsapp/history?${params}`);
       if (res.status === 401) {
         router.push('/login');
@@ -76,7 +90,7 @@ export default function HistoryPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [statusFilter, monthFilter, searchQuery, router]);
+  }, [statusFilter, monthFilter, searchQuery, startDate, endDate, router]);
 
   useEffect(() => {
     fetchHistory(1);
@@ -149,11 +163,30 @@ export default function HistoryPage() {
                 onChange={(e) => setMonthFilter(e.target.value)}
                 className="history-select"
               >
-                {monthOptions.map(opt => (
+                {dateOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
+            {monthFilter === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="history-search-input"
+                  style={{ padding: '0.65rem 1rem', width: 'auto' }}
+                />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="history-search-input"
+                  style={{ padding: '0.65rem 1rem', width: 'auto' }}
+                />
+              </div>
+            )}
             <div className="history-status-filter">
               <Filter size={14} />
               <select

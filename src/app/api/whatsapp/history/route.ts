@@ -21,7 +21,9 @@ export async function GET(req: Request) {
         const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
         const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '15')));
         const status = searchParams.get('status') || 'all'; // all, success, failed
-        const monthFilter = searchParams.get('month') || 'all'; // all, 'YYYY-MM'
+        const monthFilter = searchParams.get('month') || 'all'; // all, 'YYYY-MM', 'today', 'yesterday', 'custom'
+        const startDate = searchParams.get('startDate') || '';
+        const endDate = searchParams.get('endDate') || '';
         const search = searchParams.get('search') || '';
         const offset = (page - 1) * limit;
 
@@ -34,7 +36,22 @@ export async function GET(req: Request) {
             params.push(status);
         }
 
-        if (monthFilter !== 'all') {
+        if (monthFilter === 'today') {
+            conditions.push("DATE(created_at) = CURDATE()");
+        } else if (monthFilter === 'yesterday') {
+            conditions.push("DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)");
+        } else if (monthFilter === 'custom') {
+            if (startDate && endDate) {
+                conditions.push("DATE(created_at) BETWEEN ? AND ?");
+                params.push(startDate, endDate);
+            } else if (startDate) {
+                conditions.push("DATE(created_at) >= ?");
+                params.push(startDate);
+            } else if (endDate) {
+                conditions.push("DATE(created_at) <= ?");
+                params.push(endDate);
+            }
+        } else if (monthFilter !== 'all') {
             // Check if monthFilter matches YYYY-MM
             if (/^\d{4}-\d{2}$/.test(monthFilter)) {
                 conditions.push("DATE_FORMAT(created_at, '%Y-%m') = ?");
