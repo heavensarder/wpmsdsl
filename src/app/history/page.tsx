@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Search, Filter, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, MessageSquare, RefreshCw, Inbox } from 'lucide-react';
 import '../globals.css';
@@ -304,7 +304,7 @@ export default function HistoryPage() {
                         return p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1;
                       })
                       .map((p, idx, arr) => (
-                        <span key={p}>
+                        <React.Fragment key={p}>
                           {idx > 0 && arr[idx - 1] !== p - 1 && (
                             <span className="history-page-ellipsis">...</span>
                           )}
@@ -314,7 +314,7 @@ export default function HistoryPage() {
                           >
                             {p}
                           </button>
-                        </span>
+                        </React.Fragment>
                       ))}
                   </div>
                   <button
