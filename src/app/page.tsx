@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Smartphone, CheckCircle2, ShieldCheck, LogOut, Send, Loader2, History } from 'lucide-react';
+import { Smartphone, ShieldCheck, LogOut, Send, Loader2, History, Settings } from 'lucide-react';
 import './globals.css';
 
 type BotStatus = 'DISCONNECTED' | 'INITIALIZING' | 'PENDING_QR' | 'AUTHENTICATING' | 'CONNECTED_READY';
@@ -10,15 +10,23 @@ type BotStatus = 'DISCONNECTED' | 'INITIALIZING' | 'PENDING_QR' | 'AUTHENTICATIN
 interface StatusResponse {
   status: BotStatus;
   qrCodeUrl: string | null;
+  active_engine?: 'wwebjs' | 'meta';
 }
 
 export default function Home() {
   const [data, setData] = useState<StatusResponse>({
     status: 'INITIALIZING',
-    qrCodeUrl: null
+    qrCodeUrl: null,
+    active_engine: 'wwebjs'
   });
   
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'wwebjs' | 'meta'>('meta');
+
+  // Meta Settings State
+  const [metaAccessToken, setMetaAccessToken] = useState('');
+  const [metaPhoneId, setMetaPhoneId] = useState('');
+  const [isSavingMeta, setIsSavingMeta] = useState(false);
 
   // Test form state
   const [phone, setPhone] = useState('');
@@ -44,14 +52,29 @@ export default function Home() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.settings) {
+          setMetaAccessToken(json.settings.meta_access_token || '');
+          setMetaPhoneId(json.settings.meta_phone_id || '');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
+    fetchSettings();
     fetchStatus();
     
-    // Fetch Instance ID
     fetch('/api/auth/me')
       .then(r => r.json())
-      .then(data => {
-        if (data.instance_id) setInstanceId(data.instance_id);
+      .then(d => {
+        if (d.instance_id) setInstanceId(d.instance_id);
       })
       .catch(e => console.error(e));
 
@@ -67,6 +90,44 @@ export default function Home() {
       await fetchStatus();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleSaveMetaSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingMeta(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          active_engine: 'meta',
+          meta_access_token: metaAccessToken,
+          meta_phone_id: metaPhoneId
+        })
+      });
+      await fetchStatus();
+      alert('Meta settings saved and engine activated!');
+    } catch (err) {
+      alert('Failed to save settings');
+    } finally {
+      setIsSavingMeta(false);
+    }
+  };
+
+  const handleActivateWWebJS = async () => {
+    setIsSavingMeta(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active_engine: 'wwebjs' })
+      });
+      await fetchStatus();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingMeta(false);
     }
   };
 
@@ -110,7 +171,7 @@ export default function Home() {
       
       if (res.ok) {
          setTestResult({ success: true, msg: 'Message sent successfully!' });
-         setMessage(''); // clear message but keep phone for easier re-testing
+         setMessage(''); 
          setFileData('');
          setFileMimeType('');
          setFileName('');
@@ -138,12 +199,9 @@ export default function Home() {
             <p className="subtitle" style={{ fontSize: '0.9rem' }}>Manage your bot connection</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {data.status === 'CONNECTED_READY' && (
-              <Link href="/history" className="history-nav-btn">
-                <History size={16} />
-                History
-              </Link>
-            )}
+            <Link href="/history" className="history-nav-btn">
+              <History size={16} /> History
+            </Link>
             <button 
               type="button"
               className="btn btn-danger" 
@@ -153,7 +211,7 @@ export default function Home() {
                 window.location.reload();
               }}
             >
-              Sign Out Engine
+              Sign Out
             </button>
           </div>
         </div>
@@ -165,8 +223,34 @@ export default function Home() {
             {data.status === 'INITIALIZING' && 'Starting Engine...'}
             {data.status === 'PENDING_QR' && 'Scan QR Code'}
             {data.status === 'AUTHENTICATING' && 'Connecting...'}
-            {data.status === 'CONNECTED_READY' && 'System Online'}
+            {data.status === 'CONNECTED_READY' && `System Online (${data.active_engine === 'meta' ? 'Meta Cloud' : 'Local Web'})`}
           </div>
+        </div>
+
+        {/* Tab Selection */}
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '2rem', marginTop: '1rem' }}>
+          <button
+            onClick={() => setActiveTab('meta')}
+            style={{
+              flex: 1, padding: '1rem', background: 'none', border: 'none',
+              color: activeTab === 'meta' ? 'white' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'meta' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            Meta Cloud API
+          </button>
+          <button
+            onClick={() => setActiveTab('wwebjs')}
+            style={{
+              flex: 1, padding: '1rem', background: 'none', border: 'none',
+              color: activeTab === 'wwebjs' ? 'white' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'wwebjs' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            Local Session (QR)
+          </button>
         </div>
 
         <div className="content-area">
@@ -174,44 +258,93 @@ export default function Home() {
              <div className="loader"></div>
           ) : (
              <>
-               {(data.status === 'INITIALIZING' || data.status === 'DISCONNECTED') && (
-                 <div style={{ textAlign: 'center' }}>
-                   <div className="loader" style={{ margin: '0 auto' }}></div>
-                   <p className="info-text" style={{ marginTop: '1rem' }}>Initializing WhatsApp engine in the background...</p>
-                 </div>
-               )}
-
-               {data.status === 'AUTHENTICATING' && (
-                 <div style={{ textAlign: 'center' }}>
-                   <div className="loader" style={{ margin: '0 auto' }}></div>
-                   <p className="info-text" style={{ marginTop: '1rem' }}>QR scanned successfully! Establishing secure session...</p>
-                 </div>
-               )}
-
-               {data.status === 'PENDING_QR' && data.qrCodeUrl && (
-                 <div style={{ textAlign: 'center' }}>
-                   <div className="qr-container">
-                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                     <img src={data.qrCodeUrl} alt="WhatsApp QR Code" className="qr-image" />
+               {/* META CLOUD TAB */}
+               {activeTab === 'meta' && (
+                 <div style={{ width: '100%', textAlign: 'left' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                      <Settings size={20} color="var(--accent-primary)" />
+                      <h3 style={{ fontSize: '1.2rem', margin: 0, color: 'white' }}>Meta API Configuration</h3>
                    </div>
-                   <p className="info-text">Open WhatsApp on your phone.<br/>Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong>.<br/>Point your phone to this screen to capture the code.</p>
+                   <form onSubmit={handleSaveMetaSettings}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem' }}>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Permanent Access Token</label>
+                        <input 
+                          type="password" 
+                          className="input-field" 
+                          placeholder="EAA..." 
+                          value={metaAccessToken}
+                          onChange={e => setMetaAccessToken(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem' }}>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Phone Number ID</label>
+                        <input 
+                          type="text" 
+                          className="input-field" 
+                          placeholder="e.g. 1045xxxxxx" 
+                          value={metaPhoneId}
+                          onChange={e => setMetaPhoneId(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <button type="submit" className="btn" disabled={isSavingMeta} style={{ width: '100%', justifyContent: 'center' }}>
+                         {isSavingMeta ? <Loader2 size={18} className="spin" /> : 'Save & Activate Meta API'}
+                      </button>
+                   </form>
                  </div>
                )}
 
-               {data.status === 'CONNECTED_READY' && (
-                 <div style={{ width: '100%', textAlign: 'center' }}>
-                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', color: '#10b981', marginBottom: '2rem' }}>
-                     <ShieldCheck size={28} />
-                     <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>Secure Session Active</span>
-                   </div>
+               {/* LOCAL SESSION TAB */}
+               {activeTab === 'wwebjs' && (
+                 <>
+                   {data.active_engine === 'meta' && (
+                     <div style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.1)', marginBottom: '2rem' }}>
+                       <p style={{ color: '#ef4444', marginBottom: '1rem' }}>Local QR engine is currently <strong>disabled</strong> because the Meta Cloud API is active.</p>
+                       <button className="btn" onClick={handleActivateWWebJS} disabled={isSavingMeta}>Activate Local QR Engine</button>
+                     </div>
+                   )}
+
+                   {data.active_engine === 'wwebjs' && (
+                     <>
+                       {(data.status === 'INITIALIZING' || data.status === 'DISCONNECTED') && (
+                         <div style={{ textAlign: 'center' }}>
+                           <div className="loader" style={{ margin: '0 auto' }}></div>
+                           <p className="info-text" style={{ marginTop: '1rem' }}>Initializing WhatsApp engine in the background...</p>
+                         </div>
+                       )}
+
+                       {data.status === 'AUTHENTICATING' && (
+                         <div style={{ textAlign: 'center' }}>
+                           <div className="loader" style={{ margin: '0 auto' }}></div>
+                           <p className="info-text" style={{ marginTop: '1rem' }}>QR scanned successfully! Establishing secure session...</p>
+                         </div>
+                       )}
+
+                       {data.status === 'PENDING_QR' && data.qrCodeUrl && (
+                         <div style={{ textAlign: 'center' }}>
+                           <div className="qr-container">
+                             {/* eslint-disable-next-line @next/next/no-img-element */}
+                             <img src={data.qrCodeUrl} alt="WhatsApp QR Code" className="qr-image" />
+                           </div>
+                           <p className="info-text">Open WhatsApp on your phone.<br/>Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong>.</p>
+                         </div>
+                       )}
+                     </>
+                   )}
+                 </>
+               )}
+
+               {/* TEST PANEL (SHOWN FOR BOTH IF READY) */}
+               {data.status === 'CONNECTED_READY' && data.active_engine === activeTab && (
+                 <div style={{ width: '100%', textAlign: 'center', marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '2rem' }}>
                    
                    <div className="api-key-container">
                      <div className="api-key-header">
-                       <ShieldCheck size={20} />
-                       Your Secure API Instance ID
+                       <ShieldCheck size={20} /> Your Secure API Instance ID
                      </div>
                      <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'left' }}>
-                       You must include this Instance ID in all your external API requests to <code style={{color:'#818cf8'}}>/api/whatsapp/send</code> to authenticate.
+                       Include this Instance ID in your API requests to <code style={{color:'#818cf8'}}>/api/whatsapp/send</code>
                      </p>
                      <div className="api-key-display">
                        <span className="api-key-value">{instanceId || 'LOADING...'}</span>
@@ -223,20 +356,10 @@ export default function Home() {
                    </div>
 
                    <div className="test-panel">
-                      <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'white' }}>Test Interface</h3>
-                      <form onSubmit={handleSendTestMessage}>
-                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem' }}>
-                           <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Authentication</label>
-                           <input 
-                             type="text" 
-                             className="input-field" 
-                             placeholder="Instance ID" 
-                             value={instanceId}
-                             onChange={e => setInstanceId(e.target.value)}
-                             required
-                             style={{ marginBottom: '0', background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}
-                           />
-                         </div>
+                      <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                        <Send size={18} color="var(--accent-primary)"/> Test Interface
+                      </h3>
+                      <form onSubmit={handleSendTestMessage} style={{ textAlign: 'left' }}>
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem' }}>
                            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Destination</label>
                            <input 
@@ -257,6 +380,9 @@ export default function Home() {
                              onChange={handleFileChange}
                              style={{ marginBottom: '0', padding: '0.85rem' }}
                            />
+                           {data.active_engine === 'meta' && (
+                             <span style={{ fontSize: '0.75rem', color: '#ef4444', marginLeft: '0.5rem' }}>* Base64 file upload directly is not supported in Meta mode. Use fileUrl in your API calls instead.</span>
+                           )}
                          </div>
                          <textarea 
                            className="input-field" 
@@ -277,10 +403,11 @@ export default function Home() {
                                {isSending ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
                                {isSending ? 'Sending...' : 'Send Message'}
                             </button>
-                            <button type="button" className="btn btn-danger" onClick={handleLogout} style={{ justifyContent: 'center' }}>
-                               <LogOut size={18} />
-                               Disconnect WA
-                            </button>
+                            {data.active_engine === 'wwebjs' && (
+                              <button type="button" className="btn btn-danger" onClick={handleLogout} style={{ justifyContent: 'center' }}>
+                                 <LogOut size={18} /> Disconnect Local
+                              </button>
+                            )}
                          </div>
                       </form>
                    </div>

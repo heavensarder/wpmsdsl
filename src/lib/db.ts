@@ -34,4 +34,31 @@ export async function initMessageLogsTable() {
   messageLogsInitialized = true;
 }
 
+let settingsInitialized = false;
+export async function initSettingsTable() {
+  if (settingsInitialized) return;
+  await query(`
+    CREATE TABLE IF NOT EXISTS gateway_settings (
+      id INT PRIMARY KEY DEFAULT 1,
+      active_engine ENUM('wwebjs', 'meta') DEFAULT 'wwebjs',
+      meta_access_token VARCHAR(1000),
+      meta_phone_id VARCHAR(50)
+    )
+  `);
+  
+  // Ensure default row exists
+  const rows: any = await query('SELECT id FROM gateway_settings WHERE id = 1');
+  if (rows.length === 0) {
+    await query('INSERT INTO gateway_settings (id, active_engine) VALUES (1, "wwebjs")');
+  }
+  
+  settingsInitialized = true;
+}
+
+export async function getGatewaySettings() {
+  await initSettingsTable();
+  const rows: any = await query('SELECT * FROM gateway_settings WHERE id = 1');
+  return rows[0];
+}
+
 export default pool;

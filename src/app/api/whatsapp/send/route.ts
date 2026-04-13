@@ -1,24 +1,33 @@
 import { NextResponse } from 'next/server';
 import { getWhatsAppClient, getWhatsAppStatus } from '@/lib/whatsapp';
 import { MessageMedia } from 'whatsapp-web.js';
-import { query, initMessageLogsTable } from '@/lib/db';
+import { query, initMessageLogsTable, getGatewaySettings } from '@/lib/db';
 
 export async function POST(req: Request) {
     try {
         await initMessageLogsTable();
 
-        const statusObj = getWhatsAppStatus();
-        if (statusObj.status !== 'CONNECTED_READY') {
-            return NextResponse.json({ error: 'WhatsApp Client is not connected.' }, { status: 400 });
-        }
-
-        const client = getWhatsAppClient();
-        if (!client) {
-            return NextResponse.json({ error: 'Client unexpected error.' }, { status: 500 });
-        }
-
+        const settings = await getGatewaySettings();
         const body = await req.json();
         const { instance_id, phoneNumber, message, fileUrl, fileName, fileData, fileMimeType } = body;
+
+        if (settings.active_engine !== 'meta') {
+            const statusObj = getWhatsAppStatus();
+            if (statusObj.status !== 'CONNECTED_READY') {
+                return NextResponse.json({ error: 'WhatsApp Client is not connected.' }, { status: 400 });
+            }
+
+            const client = getWhatsAppClient();
+            if (!client) {
+                return NextResponse.json({ error: 'Client unexpected error.' }, { status: 500 });
+            }
+        } else {
+            if (!settings.meta_access_token || !settings.meta_phone_id) {
+                 return NextResponse.json({ error: 'Meta config is incomplete.' }, { status: 400 });
+            }
+        }
+
+        // instance_id checked below
 
         if (!instance_id) {
             return NextResponse.json({ error: 'instance_id is required' }, { status: 401 });
@@ -37,6 +46,63 @@ export async function POST(req: Request) {
         // WhatsApp structure requires number@c.us
         const chatId = `${phoneNumber.replace(/\D/g, '')}@c.us`;
 
+        if (settings.active_engine === 'meta') {
+             try {
+                let attachmentLogSource = fileUrl || (fileData ? 'direct-file-attachment' : null);
+                let payload: any = {
+                    messaging_product: "whatsapp",
+                    to: phoneNumber.replace(/\D/g, ''),
+                };
+
+                if (fileUrl) {
+                    // Send media via URL
+                    payload.type = "document";
+                    payload.document = { link: fileUrl, caption: message || '' };
+                } else if (fileData) {
+                    // We don't natively support base64 on Meta inside this endpoint as it requires an upload API first.
+                    // Returning an error asking them to use fileUrl
+                    await query(
+                        'INSERT INTO message_logs (phone_number, message, file_url, status, error_reason) VALUES (?, ?, ?, ?, ?)',
+                        [phoneNumber, message || '', 'direct-file-attachment', 'failed', 'Direct base64 file data not supported with Meta API. Use fileUrl.']
+                    );
+                    return NextResponse.json({ error: 'Base64 file data not supported via Meta Gateway. Use fileUrl.' }, { status: 400 });
+                } else {
+                    payload.type = "text";
+                    payload.text = { body: message || '' };
+                }
+
+                const res = await fetch(`https://graph.facebook.com/v19.0/${settings.meta_phone_id}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${settings.meta_access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if (data.error) {
+                    throw new Error(data.error.message || 'Meta API Error');
+                }
+
+                const messageId = data.messages ? data.messages[0].id : 'unknown';
+
+                await query(
+                    'INSERT INTO message_logs (phone_number, message, file_url, status, wa_message_id) VALUES (?, ?, ?, ?, ?)',
+                    [phoneNumber, message || '', attachmentLogSource, 'success', messageId]
+                );
+
+                return NextResponse.json({ success: true, messageId });
+             } catch (sendError: any) {
+                await query(
+                    'INSERT INTO message_logs (phone_number, message, file_url, status, error_reason) VALUES (?, ?, ?, ?, ?)',
+                    [phoneNumber, message || '', fileUrl, 'failed', sendError.message || 'Unknown Meta send error']
+                );
+                return NextResponse.json({ error: sendError.message || 'Failed to send message via Meta' }, { status: 500 });
+             }
+        }
+
+        // --- WWWEBJS FALLBACK ---
         let media: MessageMedia | undefined;
         let attachmentLogSource = null;
 
@@ -67,6 +133,7 @@ export async function POST(req: Request) {
 
         try {
             let sentMsg;
+            const client = getWhatsAppClient()!;
             if (media) {
                 // To send media with text, the media object is the main content and the text is the caption
                 const options: any = {
